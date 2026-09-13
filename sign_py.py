@@ -1,6 +1,6 @@
 # 网页端加签算法，目前123pan已弃用
-import time
 import random
+import time
 from datetime import datetime
 
 
@@ -30,7 +30,7 @@ def getSign(e):
             n = int(n, 2) + 1
         bin_n = str(bin(n))[2:].zfill(32)
         result = ""
-        for i in range(0, len(bin_int)):
+        for i in range(len(bin_int)):
             temp = int(bin_n[i]) ^ int(bin_int[i])
             result = result + str(temp)
         if result[0] == "1":
