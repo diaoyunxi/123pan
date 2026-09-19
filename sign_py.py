@@ -99,16 +99,16 @@ def getSign(e):
         u = formatDate(o)
         h = u['y']
         g = u['m']
-        l = u['d']
+        day_val = u['d']
         c = u['h']
         u = u['f']
-        d = ''.join([h, g, l, c, u])
+        d = ''.join([h, g, day_val, c, u])
         f = [s[int(p)] for p in d]
         h = A(''.join(f))
         g = A(f"{o}|{a}|{e}|{n}|{r}|{h}")
         return [h, f"{o}-{a}-{g}"]
 
-    a = str(random.randint(0, 9999999))
+    a = str(random.randint(0, 9999999))  # noqa: S311  非密码学用途，用于 API 签名随机数
     o = generate_timestamp()
     o = adjust_timestamp(o, timestamp=round(time.time()))
 

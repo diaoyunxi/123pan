@@ -62,7 +62,8 @@ class Pan123CLI:
         """主入口"""
         # Windows cmd 颜色支持
         if os.name == "nt":
-            os.system("")
+            import subprocess
+            subprocess.run(["cmd", "/c", ""], check=False, capture_output=True)
 
         self._print_banner()
         if not self._init_login():
