@@ -302,8 +302,8 @@ class Pan123Core:
 
         # 设备 / 协议
         self.protocol: str = protocol.lower()
-        self.device_type: str = device_type or random.choice(DEVICE_TYPES)
-        self.os_version: str = os_version or random.choice(OS_VERSIONS)
+        self.device_type: str = device_type or random.choice(DEVICE_TYPES)  # noqa: S311  非密码学用途，仅用于设备伪装
+        self.os_version: str = os_version or random.choice(OS_VERSIONS)  # noqa: S311  非密码学用途，仅用于设备伪装
         self.login_uuid: str = uuid.uuid4().hex
 
         # 配置文件
@@ -1089,12 +1089,12 @@ class Pan123Core:
 
         # 跟随重定向获取真实下载链接
         try:
-            # 直接请求会报错证书错误
-            # 此服务器无法证明它是 user-app-free-download-cdn.123295.com；它的安全证书来自 *.123pan.cn。这可能是由错误配置或者有攻击者截获你的连接而导致的。
-            # 关闭 SSL 验证以避免下载链接获取失败
-            # 仅在获取下载链接时关闭验证
-            requests.packages.urllib3.disable_warnings()
-            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=False)
+            # 123pan CDN 证书不匹配问题：user-app-free-download-cdn.123295.com 的证书来自 *.123pan.cn
+            # 默认关闭 SSL 验证以获取下载链接，可通过环境变量 PAN123_SSL_VERIFY=1 强制开启验证
+            ssl_verify = os.environ.get("PAN123_SSL_VERIFY", "0") == "1"
+            if not ssl_verify:
+                requests.packages.urllib3.disable_warnings()
+            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=ssl_verify)
             if resp.status_code == 302:
                 location = resp.headers.get("Location")
                 if location:
