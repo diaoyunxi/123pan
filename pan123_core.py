@@ -215,7 +215,7 @@ def calc_file_md5(file_path: str) -> str:
     Raises:
         IOError: 文件读取失败时抛出。
     """
-    md5 = hashlib.md5()
+    md5 = hashlib.md5()  # nosec B324 // 123pan API requires MD5 for instant upload
     with open(file_path, "rb") as f:
         while chunk := f.read(MD5_READ_CHUNK_SIZE):
             md5.update(chunk)
@@ -1094,7 +1094,7 @@ class Pan123Core:
             # 关闭 SSL 验证以避免下载链接获取失败
             # 仅在获取下载链接时关闭验证
             requests.packages.urllib3.disable_warnings()
-            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=False)
+            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=False)  # nosec B501 // CDN cert mismatch workaround
             if resp.status_code == 302:
                 location = resp.headers.get("Location")
                 if location:
