@@ -8,3 +8,5 @@ build/*
 123pan.exe
 123pan.spec
 android.py
+# Ruff linter cache
+.ruff_cache/
