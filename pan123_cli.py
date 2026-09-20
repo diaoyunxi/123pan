@@ -5,7 +5,6 @@
 import json
 import os
 import sys
-from typing import Dict
 
 from pan123_core import Pan123Core, Pan123Tool, Pan123EventType, format_size
 
