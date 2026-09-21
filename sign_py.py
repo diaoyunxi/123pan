@@ -1,6 +1,6 @@
 # 网页端加签算法，目前123pan已弃用
-import time
 import random
+import time
 from datetime import datetime
 
 
@@ -30,7 +30,7 @@ def getSign(e):
             n = int(n, 2) + 1
         bin_n = str(bin(n))[2:].zfill(32)
         result = ""
-        for i in range(0, len(bin_int)):
+        for i in range(len(bin_int)):
             temp = int(bin_n[i]) ^ int(bin_int[i])
             result = result + str(temp)
         if result[0] == "1":
@@ -50,8 +50,8 @@ def getSign(e):
 
         def generate_array():
             t = []
-            for e in range(256):
-                n = e
+            for elem in range(256):
+                n = elem
                 for _ in range(8):
                     if n & 1:  # 如果 n 的最低位是 1
                         # print("入口：n：", n)
@@ -83,7 +83,7 @@ def getSign(e):
     def formatDate(t, e=None, n=8):
         t = int(t)  # Use the original timestamp
         t = t - 480 * 60
-        r = datetime.fromtimestamp(t + 3600 * n)  # Convert to seconds and add 'n' hours
+        r = datetime.fromtimestamp(t + 3600 * n, tz=__import__("datetime").timezone.utc)  # Convert to seconds and add 'n' hours
         data = {
             'y': str(r.year),
             'm': f"0{r.month}" if r.month < 10 else str(r.month),
@@ -102,7 +102,7 @@ def getSign(e):
         l = u['d']
         c = u['h']
         u = u['f']
-        d = ''.join([h, g, l, c, u])
+        d = f"{h}{g}{l}{c}{u}"
         f = [s[int(p)] for p in d]
         h = A(''.join(f))
         g = A(f"{o}|{a}|{e}|{n}|{r}|{h}")
