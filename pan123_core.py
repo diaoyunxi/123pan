@@ -453,18 +453,21 @@ class Pan123Core:
             json_data: Any = None,
             params: Any = None,
             timeout: int = TIMEOUT_DEFAULT,
+            max_retries: int = 3,
     ) -> Dict[str, Any]:
         """发送 HTTP 请求并返回统一 Result。
 
         内部方法，自动拼接 API_BASE_URL（当 path 以 "/" 开头时），
         统一处理网络异常和 JSON 解析。
+        对瞬时网络错误和 HTTP 5xx/429 自动指数退避重试（最多 max_retries 次）。
 
         Args:
-            method:    HTTP 方法，"GET" / "POST" / "PUT" 等。
-            path:      接口路径（以 "/" 开头则自动拼接 API_BASE_URL）或完整 URL。
-            json_data: POST 请求体（将被 json 序列化）。
-            params:    GET 查询参数字典。
-            timeout:   请求超时秒数。
+            method:       HTTP 方法，"GET" / "POST" / "PUT" 等。
+            path:         接口路径（以 "/" 开头则自动拼接 API_BASE_URL）或完整 URL。
+            json_data:    POST 请求体（将被 json 序列化）。
+            params:       GET 查询参数字典。
+            timeout:      请求超时秒数。
+            max_retries:  最大重试次数，默认 3。
 
         Returns:
             Result 字典::
@@ -473,34 +476,53 @@ class Pan123Core:
                 失败: {"code": <0, "message": "错误描述", "data": {API响应} | None}
         """
         url = f"{API_BASE_URL}{path}" if path.startswith("/") else path
-        try:
-            resp = requests.request(
-                method, url,
-                headers=self.headers,
-                json=json_data,
-                params=params,
-                timeout=timeout,
-            )
+        base_delay = 1  # seconds
+        last_error = ""
+
+        for attempt in range(max_retries + 1):
             try:
-                data = resp.json()
-            except ValueError:
-                content_type = resp.headers.get("content-type", "unknown")
-                preview = (resp.text or "").strip().replace("\r", " ").replace("\n", " ")
-                if len(preview) > 200:
-                    preview = f"{preview[:200]}..."
-                if not preview:
-                    preview = "<empty>"
-                return make_result(
-                    -2,
-                    f"响应 JSON 解析错误: HTTP {resp.status_code}, Content-Type: {content_type}, Body: {preview}",
+                resp = requests.request(
+                    method, url,
+                    headers=self.headers,
+                    json=json_data,
+                    params=params,
+                    timeout=timeout,
                 )
-            api_code = data.get("code", -1)
-            # 123pan 登录成功/退出登录 成功返回 code 200，其余接口成功返回 0
-            if api_code not in (CODE_OK, CODE_LOGIN_OK):
-                return make_result(-3, data.get("message", "未知错误"), data)
-            return make_result(CODE_OK, "ok", data)
-        except requests.RequestException as e:
-            return make_result(-1, f"请求失败: {e}")
+
+                # Retry on server errors and rate limiting
+                if resp.status_code in (429, 500, 502, 503, 504) and attempt < max_retries:
+                    delay = base_delay * (2 ** attempt)
+                    last_error = f"HTTP {resp.status_code}"
+                    time.sleep(delay)
+                    continue
+
+                try:
+                    data = resp.json()
+                except ValueError:
+                    content_type = resp.headers.get("content-type", "unknown")
+                    preview = (resp.text or "").strip().replace("\r", " ").replace("\n", " ")
+                    if len(preview) > 200:
+                        preview = f"{preview[:200]}..."
+                    if not preview:
+                        preview = "<empty>"
+                    return make_result(
+                        -2,
+                        f"响应 JSON 解析错误: HTTP {resp.status_code}, Content-Type: {content_type}, Body: {preview}",
+                    )
+                api_code = data.get("code", -1)
+                # 123pan 登录成功/退出登录 成功返回 code 200，其余接口成功返回 0
+                if api_code not in (CODE_OK, CODE_LOGIN_OK):
+                    return make_result(-3, data.get("message", "未知错误"), data)
+                return make_result(CODE_OK, "ok", data)
+            except requests.RequestException as e:
+                last_error = str(e)
+                if attempt < max_retries:
+                    delay = base_delay * (2 ** attempt)
+                    time.sleep(delay)
+                    continue
+                return make_result(-1, f"请求失败（重试 {max_retries} 次后）: {last_error}")
+
+        return make_result(-1, f"请求失败（重试 {max_retries} 次后）: {last_error}")
 
     # ════════════════════════════════════════════════════════════
     #  用户信息
