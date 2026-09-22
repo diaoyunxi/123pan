@@ -1818,6 +1818,8 @@ class Pan123Tool:
         temp_path = full_path + ".123pan"
         try:
             resp = requests.get(url, stream=True, timeout=TIMEOUT_DOWNLOAD)
+            if resp.status_code != 200:
+                return make_result(-1, f"下载失败: 服务器返回 HTTP {resp.status_code}")
             total = int(resp.headers.get("Content-Length", 0))
             downloaded = 0
             start = time.time()
