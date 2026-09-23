@@ -414,7 +414,7 @@ class Pan123Core:
             self._build_headers()
             self._sync_authorization()
             return make_result(CODE_OK, "配置加载成功", cfg)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, json.JSONDecodeError, OSError) as e:
             return make_result(-1, f"加载配置失败: {e}")
 
     def get_current_config(self) -> Dict[str, Any]:
@@ -1678,7 +1678,7 @@ class Pan123Tool:
             with open(self.config_file, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
             return self.core.load_config(cfg)
-        except Exception as e:
+        except (FileNotFoundError, PermissionError, json.JSONDecodeError, OSError) as e:
             return make_result(-1, f"加载配置失败: {e}")
 
     def save_config_to_file(self) -> Dict[str, Any]:
@@ -1702,7 +1702,7 @@ class Pan123Tool:
             with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(cfg, f, ensure_ascii=False, indent=2)
             return make_result(CODE_OK, "配置已保存", cfg)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - broad catch for user-facing error reporting
             return make_result(-1, f"保存配置失败: {e}")
 
     def download_file(
