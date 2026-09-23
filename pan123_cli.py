@@ -103,7 +103,7 @@ class Pan123CLI:
                 print("\n操作已取消")
             except EOFError:
                 break
-            except Exception as e:
+            except (ValueError, OSError, RuntimeError) as e:
                 print(colored(f"发生错误: {e}", Color.RED))
 
     # ──────────────── 初始化 ────────────────
