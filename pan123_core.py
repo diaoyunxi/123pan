@@ -203,6 +203,8 @@ def format_size(size_bytes: int) -> str:
     return f"{size_bytes} B"
 
 
+# NOTE: MD5 is used here for file checksum verification as required by 123pan API.
+# MD5 is not cryptographically secure; do not use for security-critical purposes.
 def calc_file_md5(file_path: str) -> str:
     """计算文件的 MD5 哈希值。
 
