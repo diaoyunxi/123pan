@@ -1581,13 +1581,26 @@ class Pan123Core:
                         return make_result(-1, f"获取上传 URL 失败: {r['message']}")
                     upload_url = r["data"]["data"]["presignedUrls"][str(part_number)]
 
-                    # 步骤 2: PUT 上传分块数据
-                    try:
-                        resp = requests.put(upload_url, data=chunk, timeout=TIMEOUT_UPLOAD_CHUNK)
-                        if resp.status_code not in (200, 201):
+                    # 步骤 2: PUT 上传分块数据（含指数退避重试）
+                    _max_retries = 3
+                    _chunk_ok = False
+                    for _attempt in range(1, _max_retries + 1):
+                        try:
+                            resp = requests.put(upload_url, data=chunk, timeout=TIMEOUT_UPLOAD_CHUNK)
+                            if resp.status_code in (200, 201):
+                                _chunk_ok = True
+                                break
+                            if resp.status_code in (429, 500, 502, 503, 504) and _attempt < _max_retries:
+                                time.sleep(0.5 * (2 ** (_attempt - 1)))
+                                continue
                             return make_result(-1, f"分块上传失败，HTTP {resp.status_code}")
-                    except requests.RequestException as e:
-                        return make_result(-1, f"分块上传请求失败: {e}")
+                        except requests.RequestException as e:
+                            if _attempt < _max_retries:
+                                time.sleep(0.5 * (2 ** (_attempt - 1)))
+                                continue
+                            return make_result(-1, f"分块上传请求失败: {e}")
+                    if not _chunk_ok:
+                        return make_result(-1, "分块上传重试耗尽")
 
                     uploaded += len(chunk)
                     if on_progress:
