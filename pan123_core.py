@@ -1,3 +1,6 @@
+import os
+SSL_VERIFY = os.getenv("PAN123_SSL_VERIFY", "true").lower() != "false"
+
 """
 123pan 网盘内核模块
 所有公开方法统一返回 Result 字典::
@@ -1094,7 +1097,7 @@ class Pan123Core:
             # 关闭 SSL 验证以避免下载链接获取失败
             # 仅在获取下载链接时关闭验证
             requests.packages.urllib3.disable_warnings()
-            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=False)
+            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=SSL_VERIFY)
             if resp.status_code == 302:
                 location = resp.headers.get("Location")
                 if location:
