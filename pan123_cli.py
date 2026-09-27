@@ -64,27 +64,29 @@ class Pan123CLI:
         if os.name == "nt":
             os.system("")
 
-        self._print_banner()
-        if not self._init_login():
-            print(colored("无法登录", Color.RED))
-            a = input("输入1重新输入账号和密码，输入2清除登录信息，其他键退出: ")
-            if a == "1":
-                user_name = input("请输入用户名: ")
-                password = input("请输入密码: ")
-                if not user_name or not password:
-                    print("用户名和密码不能为空，程序退出")
-                    return
-                self.core.load_config({
-                    "userName": user_name,
-                    "passWord": password,
-                    "authorization": ""
-                })
-                self.save_config()
-                return self.run()
-            if a == "2":
-                self._do_clear_account()
-                return self.run()
-            return
+        # 使用循环替代递归调用，防止多次登录失败时栈溢出 (CWE-674)
+        while True:
+            self._print_banner()
+            if not self._init_login():
+                print(colored("无法登录", Color.RED))
+                a = input("输入1重新输入账号和密码，输入2清除登录信息，其他键退出: ")
+                if a == "1":
+                    user_name = input("请输入用户名: ")
+                    password = input("请输入密码: ")
+                    if not user_name or not password:
+                        print("用户名和密码不能为空，程序退出")
+                        return
+                    self.core.load_config({
+                        "userName": user_name,
+                        "passWord": password,
+                        "authorization": ""
+                    })
+                    self.save_config()
+                    continue  # 重试登录，避免递归调用
+                if a == "2":
+                    self._do_clear_account()
+                    continue  # 重试登录，避免递归调用
+                return
 
         self.save_config()
         self.core.refresh()  # 加载文件列表
