@@ -143,6 +143,11 @@ class Pan123CLI:
         cfg = self.core.get_current_config()
         with open(self.config_file, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
+        # 设置 0600 权限防止配置文件（含凭据）被其他用户读取
+        try:
+            os.chmod(self.config_file, 0o600)
+        except OSError:
+            pass  # Windows 不支持 chmod
 
     # ──────────────── 命令分发 ────────────────
 
