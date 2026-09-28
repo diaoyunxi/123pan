@@ -1,6 +1,6 @@
 # 网页端加签算法，目前123pan已弃用
 import time
-import random
+import secrets
 from datetime import datetime
 
 
@@ -108,7 +108,7 @@ def getSign(e):
         g = A(f"{o}|{a}|{e}|{n}|{r}|{h}")
         return [h, f"{o}-{a}-{g}"]
 
-    a = str(random.randint(0, 9999999))
+    a = str(secrets.randbelow(10000000))
     o = generate_timestamp()
     o = adjust_timestamp(o, timestamp=round(time.time()))
 
