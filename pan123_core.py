@@ -1819,6 +1819,11 @@ class Pan123Tool:
         try:
             resp = requests.get(url, stream=True, timeout=TIMEOUT_DOWNLOAD)
             total = int(resp.headers.get("Content-Length", 0))
+            # Validate Content-Length header
+            if total < 0:
+                return make_result(-1, "无效的 Content-Length 响应头", {"path": full_path})
+            if total == 0:
+                logger.warning(f"Content-Length 为 0，文件可能为空或服务器未返回正确大小")
             downloaded = 0
             start = time.time()
             with open(temp_path, "wb") as f:
