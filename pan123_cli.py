@@ -5,7 +5,7 @@
 import json
 import os
 import sys
-from typing import Dict
+
 
 from pan123_core import Pan123Core, Pan123Tool, Pan123EventType, format_size
 
@@ -123,7 +123,7 @@ class Pan123CLI:
             return False
         return True
 
-    def load_config(self) -> Dict:
+    def load_config(self) -> dict:
         """加载配置"""
         try:
             with open(self.config_file, "r", encoding="utf-8") as f:
