@@ -143,6 +143,10 @@ class Pan123CLI:
         cfg = self.core.get_current_config()
         with open(self.config_file, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
+        
+        # 设置文件权限为仅所有者可读写 (CWE-732)
+        import os
+        os.chmod(self.config_file, 0o600)
 
     # ──────────────── 命令分发 ────────────────
 
