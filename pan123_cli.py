@@ -1,4 +1,5 @@
 """
+import subprocess
 123pan 控制台交互界面 —— 仅负责用户 IO，所有业务调用 Pan123Core。
 """
 
@@ -62,7 +63,7 @@ class Pan123CLI:
         """主入口"""
         # Windows cmd 颜色支持
         if os.name == "nt":
-            os.system("")
+            subprocess.run(["cmd", "/c", ""], check=False, capture_output=True)
 
         self._print_banner()
         if not self._init_login():
