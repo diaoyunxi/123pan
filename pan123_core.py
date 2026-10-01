@@ -1819,6 +1819,8 @@ class Pan123Tool:
         try:
             resp = requests.get(url, stream=True, timeout=TIMEOUT_DOWNLOAD)
             total = int(resp.headers.get("Content-Length", 0))
+            if total < 0:
+                return make_result(-1, "服务器返回无效的 Content-Length（负值）")
             downloaded = 0
             start = time.time()
             with open(temp_path, "wb") as f:
