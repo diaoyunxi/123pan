@@ -1089,12 +1089,14 @@ class Pan123Core:
 
         # 跟随重定向获取真实下载链接
         try:
-            # 直接请求会报错证书错误
-            # 此服务器无法证明它是 user-app-free-download-cdn.123295.com；它的安全证书来自 *.123pan.cn。这可能是由错误配置或者有攻击者截获你的连接而导致的。
-            # 关闭 SSL 验证以避免下载链接获取失败
-            # 仅在获取下载链接时关闭验证
-            requests.packages.urllib3.disable_warnings()
-            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=False)
+            # 安全说明：123 网盘 CDN 存在证书域名不匹配问题（*.123pan.cn vs 123295.com）
+            # 通过环境变量 PAN123_SSL_VERIFY 控制是否验证 SSL 证书
+            # 默认保持 verify=False 以兼容现有行为，但用户可设置 PAN123_SSL_VERIFY=1 启用验证
+            ssl_verify = os.environ.get("PAN123_SSL_VERIFY", "").lower() in ("1", "true", "yes")
+            if not ssl_verify:
+                import urllib3
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=ssl_verify)
             if resp.status_code == 302:
                 location = resp.headers.get("Location")
                 if location:
