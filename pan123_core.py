@@ -406,7 +406,10 @@ class Pan123Core:
         """
         try:
             self.user_name = cfg.get("userName", self.user_name)
-            self.password = cfg.get("passWord", self.password)
+            # CWE-312: 密码占位符 __MASKED__ 表示磁盘上未存储真实密码，不覆盖内存值
+            stored_pwd = cfg.get("passWord", self.password)
+            if stored_pwd and stored_pwd != "__MASKED__":
+                self.password = stored_pwd
             self.authorization = cfg.get("authorization", self.authorization)
             self.device_type = cfg.get("deviceType", self.device_type)
             self.os_version = cfg.get("osVersion", self.os_version)
@@ -434,7 +437,8 @@ class Pan123Core:
         """
         return {
             "userName": self.user_name,
-            "passWord": self.password,
+            # CWE-312: 对外展示时脱敏密码，防止日志或调试输出泄露
+            "passWord": "***" if self.password else "",
             "authorization": self.authorization,
             "deviceType": self.device_type,
             "osVersion": self.os_version,
@@ -1684,6 +1688,10 @@ class Pan123Tool:
     def save_config_to_file(self) -> Dict[str, Any]:
         """将当前账号信息、Token 及协议设置保存到配置文件。
 
+        安全说明 (CWE-312): 密码不再以明文写入配置文件。
+        持久化时密码字段替换为占位符 ``__MASKED__``；后续登录需重新输入密码。
+        ``authorization`` token 是唯一需要持久化的凭据，足以维持后续 API 调用。
+
         Returns:
             Result 字典::
 
@@ -1692,7 +1700,8 @@ class Pan123Tool:
         """
         cfg = {
             "userName": self.core.user_name,
-            "passWord": self.core.password,
+            # CWE-312: 密码不持久化到磁盘，用占位符标记；重新登录时由用户输入
+            "passWord": "__MASKED__" if self.core.password else "",
             "authorization": self.core.authorization,
             "deviceType": self.core.device_type,
             "osVersion": self.core.os_version,
