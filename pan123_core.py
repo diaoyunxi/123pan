@@ -1818,7 +1818,14 @@ class Pan123Tool:
         temp_path = full_path + ".123pan"
         try:
             resp = requests.get(url, stream=True, timeout=TIMEOUT_DOWNLOAD)
-            total = int(resp.headers.get("Content-Length", 0))
+            # 安全解析 Content-Length：畸形值（非数字/负数）回退为 0，
+            # 防止 ValueError 导致下载崩溃 (CWE-755)
+            try:
+                total = int(resp.headers.get("Content-Length", 0))
+            except (ValueError, TypeError):
+                total = 0
+            if total < 0:
+                total = 0
             downloaded = 0
             start = time.time()
             with open(temp_path, "wb") as f:
