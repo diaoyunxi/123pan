@@ -13,6 +13,7 @@ import json
 import os
 import random
 import re
+import warnings
 import time
 import uuid
 from dataclasses import dataclass
@@ -1093,8 +1094,11 @@ class Pan123Core:
             # 此服务器无法证明它是 user-app-free-download-cdn.123295.com；它的安全证书来自 *.123pan.cn。这可能是由错误配置或者有攻击者截获你的连接而导致的。
             # 关闭 SSL 验证以避免下载链接获取失败
             # 仅在获取下载链接时关闭验证
-            requests.packages.urllib3.disable_warnings()
-            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=False)
+            # 仅在局部抑制 InsecureRequestWarning，不使用进程级 disable_warnings()
+            import urllib3
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
+                resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=False)
             if resp.status_code == 302:
                 location = resp.headers.get("Location")
                 if location:
