@@ -481,6 +481,13 @@ class Pan123Core:
                 params=params,
                 timeout=timeout,
             )
+            # HTTP 状态码校验：非 2xx 响应不应视为 API 成功 (CWE-20)
+            if resp.status_code >= 400:
+                preview = (resp.text or "").strip()[:200]
+                return make_result(
+                    -4,
+                    f"HTTP {resp.status_code} 错误: {preview or '<empty>'}",
+                )
             try:
                 data = resp.json()
             except ValueError:
