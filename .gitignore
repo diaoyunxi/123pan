@@ -8,3 +8,7 @@ build/*
 123pan.exe
 123pan.spec
 android.py
+# Environment variables file (contains secrets)
+.env
+__pycache__/
+*.pyc
