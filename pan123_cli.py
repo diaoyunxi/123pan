@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 123pan 控制台交互界面 —— 仅负责用户 IO，所有业务调用 Pan123Core。
 """

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 123pan 网盘内核模块
 所有公开方法统一返回 Result 字典::
