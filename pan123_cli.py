@@ -54,7 +54,7 @@ class Pan123CLI:
         """主入口"""
         # Windows cmd 颜色支持
         if os.name == "nt":
-            os.system("")
+            os.system("")  # noqa: S607 - Windows ANSI color enable
 
         self._print_banner()
         if not self._init_login():
