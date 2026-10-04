@@ -5,11 +5,7 @@
 import json
 import os
 import sys
-from typing import Dict
-
 from pan123_core import Pan123Core, Pan123Tool, Pan123EventType, format_size
-
-
 # ──────────────── 颜色工具 ────────────────
 
 class Color:
@@ -20,12 +16,8 @@ class Color:
     YELLOW = "\033[93m"
     PURPLE = "\033[35m"
     CYAN = "\033[96m"
-
-
 def colored(text: str, color: str) -> str:
     return f"{color}{text}{Color.RESET}"
-
-
 # ──────────────── CLI 类 ────────────────
 
 class Pan123CLI:
@@ -73,7 +65,7 @@ class Pan123CLI:
                 password = input("请输入密码: ")
                 if not user_name or not password:
                     print("用户名和密码不能为空，程序退出")
-                    return
+                    return None
                 self.core.load_config({
                     "userName": user_name,
                     "passWord": password,
@@ -84,7 +76,7 @@ class Pan123CLI:
             if a == "2":
                 self._do_clear_account()
                 return self.run()
-            return
+            return None
 
         self.save_config()
         self.core.refresh()  # 加载文件列表
@@ -463,8 +455,6 @@ class Pan123CLI:
         if total > 0:
             pct = uploaded / total * 100
             print(f"\r上传进度: {pct:.1f}%", end="", flush=True)
-
-
 # ──────────────── 入口 ────────────────
 
 if __name__ == "__main__":
