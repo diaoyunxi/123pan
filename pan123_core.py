@@ -16,6 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 import os
 import random
+import secrets
 import re
 import time
 import uuid
@@ -307,8 +308,8 @@ class Pan123Core:
 
         # 设备 / 协议
         self.protocol: str = protocol.lower()
-        self.device_type: str = device_type or random.choice(DEVICE_TYPES)
-        self.os_version: str = os_version or random.choice(OS_VERSIONS)
+        self.device_type: str = device_type or secrets.choice(DEVICE_TYPES)
+        self.os_version: str = os_version or secrets.choice(OS_VERSIONS)
         self.login_uuid: str = uuid.uuid4().hex
 
         # 配置文件
