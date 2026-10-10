@@ -1595,7 +1595,7 @@ class Pan123Core:
                             "type": Pan123EventType.UPLOAD_PROGRESS,
                             "uploaded": uploaded,
                             "total": total_size,
-                            "percent": uploaded / total_size * 100,
+                            "percent": (uploaded / total_size * 100) if total_size > 0 else 100.0,
                         })
                     part_number += 1
 
