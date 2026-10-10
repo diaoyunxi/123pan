@@ -218,7 +218,7 @@ def calc_file_md5(file_path: str) -> str:
     Raises:
         IOError: 文件读取失败时抛出。
     """
-    md5 = hashlib.md5()
+    md5 = hashlib.md5(usedforsecurity=False)  # S324: 仅用于文件完整性校验，非密码学用途
     with open(file_path, "rb") as f:
         while chunk := f.read(MD5_READ_CHUNK_SIZE):
             md5.update(chunk)
