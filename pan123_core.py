@@ -1373,6 +1373,7 @@ class Pan123Core:
                 dir_names[:] = []
                 continue
 
+            failed_dirs = []
             for dir_name in list(dir_names):
                 local_dir = os.path.join(current_dir, dir_name)
                 sub_res = self._mkdir_at(dir_name, parent_remote_id)
@@ -1380,7 +1381,10 @@ class Pan123Core:
                     remote_dirs[local_dir] = sub_res["data"]["file_id"]
                 else:
                     errors.append(f"{os.path.relpath(local_dir, root_path)}: {sub_res['message']}")
-                    dir_names.remove(dir_name)
+                    failed_dirs.append(dir_name)
+            # 延迟移除，避免在遍历 list(dir_names) 期间修改 dir_names
+            for d in failed_dirs:
+                dir_names.remove(d)
 
             for file_name in file_names:
                 local_file = os.path.join(current_dir, file_name)
