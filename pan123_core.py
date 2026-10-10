@@ -10,6 +10,9 @@
 
 import hashlib
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 import os
 import random
 import re
@@ -415,7 +418,8 @@ class Pan123Core:
             self._sync_authorization()
             return make_result(CODE_OK, "配置加载成功", cfg)
         except Exception as e:
-            return make_result(-1, f"加载配置失败: {e}")
+            logger.debug("加载配置失败: %s", e)
+            return make_result(-1, "加载配置失败，请检查配置文件")
 
     def get_current_config(self) -> Dict[str, Any]:
         """获取当前账号信息、Token 及协议设置的字典表示。
@@ -500,7 +504,8 @@ class Pan123Core:
                 return make_result(-3, data.get("message", "未知错误"), data)
             return make_result(CODE_OK, "ok", data)
         except requests.RequestException as e:
-            return make_result(-1, f"请求失败: {e}")
+            logger.debug("请求失败: %s", e)
+            return make_result(-1, "网络请求失败，请稍后重试")
 
     # ════════════════════════════════════════════════════════════
     #  用户信息
@@ -1105,7 +1110,8 @@ class Pan123Core:
                 return make_result(CODE_OK, "ok", {"url": match.group(1)})
             return make_result(-1, "无法解析真实下载链接")
         except requests.RequestException as e:
-            return make_result(-1, f"获取真实下载链接失败: {e}")
+            logger.debug("获取真实下载链接失败: %s", e)
+            return make_result(-1, "获取下载链接失败，请稍后重试")
 
     # 文件交互，方法已移至 Pan123Tool
     # def download_file(
@@ -1186,7 +1192,8 @@ class Pan123Core:
     #     except Exception as e:
     #         if os.path.exists(temp_path):
     #             os.remove(temp_path)
-    #         return make_result(-1, f"下载失败: {e}")
+    #         logger.debug("下载失败: %s", e)
+            return make_result(-1, "下载失败，请稍后重试")
 
     # 文件交互，方法已移至 Pan123Tool，Pan123Core 仅保留获取下载链接的功能，目录下载逻辑也移至工具类以避免内核依赖文件系统。
     # def download_directory(
@@ -1427,7 +1434,8 @@ class Pan123Core:
         try:
             md5 = calc_file_md5(file_path)
         except IOError as e:
-            return make_result(-1, f"读取文件失败: {e}")
+            logger.debug("读取文件失败: %s", e)
+            return make_result(-1, "读取文件失败，请检查文件是否存在")
 
         payload = {
             "driveId": 0,
@@ -1587,7 +1595,8 @@ class Pan123Core:
                         if resp.status_code not in (200, 201):
                             return make_result(-1, f"分块上传失败，HTTP {resp.status_code}")
                     except requests.RequestException as e:
-                        return make_result(-1, f"分块上传请求失败: {e}")
+                        logger.debug("分块上传请求失败: %s", e)
+                        return make_result(-1, "分块上传请求失败，请稍后重试")
 
                     uploaded += len(chunk)
                     if on_progress:
@@ -1616,7 +1625,8 @@ class Pan123Core:
             return make_result(-1, f"上传确认失败: {r['message']}")
 
         except IOError as e:
-            return make_result(-1, f"读取文件失败: {e}")
+            logger.debug("读取文件失败: %s", e)
+            return make_result(-1, "读取文件失败，请检查文件路径")
 
     # ════════════════════════════════════════════════════════════
     #  协议切换
@@ -1679,7 +1689,8 @@ class Pan123Tool:
                 cfg = json.load(f)
             return self.core.load_config(cfg)
         except Exception as e:
-            return make_result(-1, f"加载配置失败: {e}")
+            logger.debug("加载配置失败: %s", e)
+            return make_result(-1, "加载配置失败，请检查配置文件")
 
     def save_config_to_file(self) -> Dict[str, Any]:
         """将当前账号信息、Token 及协议设置保存到配置文件。
@@ -1703,7 +1714,8 @@ class Pan123Tool:
                 json.dump(cfg, f, ensure_ascii=False, indent=2)
             return make_result(CODE_OK, "配置已保存", cfg)
         except Exception as e:
-            return make_result(-1, f"保存配置失败: {e}")
+            logger.debug("保存配置失败: %s", e)
+            return make_result(-1, "保存配置失败，请检查写入权限")
 
     def download_file(
             self,
@@ -1842,7 +1854,8 @@ class Pan123Tool:
         except Exception as e:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
-            return make_result(-1, f"下载失败: {e}")
+            logger.debug("下载失败: %s", e)
+            return make_result(-1, "下载失败，请稍后重试")
 
     def download_directory(
             self,
