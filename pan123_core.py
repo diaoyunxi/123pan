@@ -1833,7 +1833,18 @@ class Pan123Tool:
         """
 
         os.makedirs(save_dir, exist_ok=True)
+        
+        # 路径穿越防护：确保文件名不包含路径分隔符或上级目录引用 (CWE-22)
+        file_name = os.path.basename(file_name)  # 去除路径组件
+        file_name = re.sub(r'[<>:"|?*]', '_', file_name)  # 去除 Windows 非法字符
+        if not file_name or file_name.startswith('.'):
+            file_name = 'unnamed_download'
+        
         full_path = os.path.join(save_dir, file_name)
+        
+        # 二次校验：确保最终路径仍在 save_dir 内
+        if not os.path.commonpath([os.path.abspath(full_path), os.path.abspath(save_dir)]) == os.path.abspath(save_dir):
+            return make_result(-1, "文件名包含非法路径字符")
 
         # 文件冲突处理
         if os.path.exists(full_path):
