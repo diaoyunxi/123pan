@@ -128,6 +128,15 @@ class Pan123CLI:
         try:
             with open(self.config_file, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
+        except json.JSONDecodeError:
+            print(f"警告: 配置文件 {self.config_file} 格式损坏，请重新配置")
+            user_name = input("请输入用户名: ")
+            password = input("请输入密码: ")
+            cfg = {
+                "userName": user_name,
+                "passWord": password,
+                "authorization": ""
+            }
         except FileNotFoundError:
             user_name = input("请输入用户名: ")
             password = input("请输入密码: ")
