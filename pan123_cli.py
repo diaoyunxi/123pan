@@ -116,6 +116,9 @@ class Pan123CLI:
     def _init_login(self) -> bool:
         """尝试加载配置 -> 尝试访问目录 -> 必要时登录"""
         res = self.load_config()
+        if res.get("code", -1) < 0:
+            print(colored(f"配置加载失败: {res.get('message', '未知错误')}", Color.YELLOW))
+            return False
         r = self.core.init_login_state()
         if r["code"] < 0:
             print(colored("登录失败", Color.YELLOW))
