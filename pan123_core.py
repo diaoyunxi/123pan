@@ -742,14 +742,19 @@ class Pan123Core:
         """
         if parent_id is None:
             parent_id = self.cwd_id
+        MAX_PAGES = 1000  # 分页安全上限，防止 API 异常时死循环 (CWE-835)
         page = 1
         all_items: List[Dict] = []
         total = -1
-        while total == -1 or len(all_items) < total:
+        while (total == -1 or len(all_items) < total) and page <= MAX_PAGES:
             r = self.list_dir(parent_id, page=page, limit=limit)
             if r["code"] != CODE_OK:
                 return r
-            all_items.extend(r["data"]["items"])
+            new_items = r["data"]["items"]
+            if not new_items:
+                # API 返回空页，提前退出防止无效分页
+                break
+            all_items.extend(new_items)
             total = r["data"]["total"]
             page += 1
             # 限频：每 RATE_LIMIT_PAGES 页暂停 RATE_LIMIT_INTERVAL 秒
