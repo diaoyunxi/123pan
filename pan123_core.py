@@ -1640,7 +1640,9 @@ class Pan123Core:
                 "uploadId": upload_id,
                 "StorageNode": storage_node,
             }
-            self._request("POST", URL_UPLOAD_COMPLETE_S3, json_data=merge_payload, timeout=TIMEOUT_TRASH)
+            merge_r = self._request("POST", URL_UPLOAD_COMPLETE_S3, json_data=merge_payload, timeout=TIMEOUT_TRASH)
+            if merge_r["code"] != CODE_OK:
+                return make_result(-1, f"S3 分块合并失败: {merge_r['message']}")
             time.sleep(S3_MERGE_DELAY)
 
             # 步骤 4: 确认上传完成
