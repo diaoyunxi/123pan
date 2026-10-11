@@ -1857,7 +1857,7 @@ class Pan123Tool:
         full_path = os.path.join(save_dir, file_name)
         
         # 二次校验：确保最终路径仍在 save_dir 内
-        if not os.path.commonpath([os.path.abspath(full_path), os.path.abspath(save_dir)]) == os.path.abspath(save_dir):
+        if os.path.commonpath([os.path.abspath(full_path), os.path.abspath(save_dir)]) != os.path.abspath(save_dir):
             return make_result(-1, "文件名包含非法路径字符")
 
         # 文件冲突处理
