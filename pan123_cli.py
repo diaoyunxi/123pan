@@ -6,7 +6,9 @@
 import json
 import os
 import sys
-from pan123_core import Pan123Core, Pan123Tool, Pan123EventType, format_size
+
+from pan123_core import Pan123Core, Pan123EventType, Pan123Tool, format_size
+
 # ──────────────── 颜色工具 ────────────────
 
 class Color:
@@ -122,7 +124,7 @@ class Pan123CLI:
     def load_config(self) -> Dict:
         """加载配置"""
         try:
-            with open(self.config_file, "r", encoding="utf-8") as f:
+            with open(self.config_file, encoding="utf-8") as f:
                 cfg = json.load(f)
         except json.JSONDecodeError:
             print(f"警告: 配置文件 {self.config_file} 格式损坏，请重新配置")
@@ -148,7 +150,7 @@ class Pan123CLI:
         cfg = self.core.get_current_config()
         with open(self.config_file, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
-        
+
         # 设置文件权限为仅所有者可读写 (CWE-732)
         import os
         os.chmod(self.config_file, 0o600)

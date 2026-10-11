@@ -15,14 +15,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 import os
-import random
-import secrets
 import re
+import secrets
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Optional
-from collections.abc import Callable
 
 import requests
 
@@ -1458,7 +1457,7 @@ class Pan123Core:
 
         try:
             md5 = calc_file_md5(file_path)
-        except IOError as e:
+        except OSError as e:
             logger.debug("读取文件失败: %s", e)
             return make_result(-1, "读取文件失败，请检查文件是否存在")
 
@@ -1651,7 +1650,7 @@ class Pan123Core:
                 return make_result(CODE_OK, "上传完成", {"reuse": False})
             return make_result(-1, f"上传确认失败: {r['message']}")
 
-        except IOError as e:
+        except OSError as e:
             logger.debug("读取文件失败: %s", e)
             return make_result(-1, "读取文件失败，请检查文件路径")
 
@@ -1712,7 +1711,7 @@ class Pan123Tool:
         if not os.path.exists(self.config_file):
             return make_result(-1, "配置文件不存在")
         try:
-            with open(self.config_file, "r", encoding="utf-8") as f:
+            with open(self.config_file, encoding="utf-8") as f:
                 cfg = json.load(f)
             return self.core.load_config(cfg)
         except Exception as e:
@@ -1847,15 +1846,15 @@ class Pan123Tool:
         """
 
         os.makedirs(save_dir, exist_ok=True)
-        
+
         # 路径穿越防护：确保文件名不包含路径分隔符或上级目录引用 (CWE-22)
         file_name = os.path.basename(file_name)  # 去除路径组件
         file_name = re.sub(r'[<>:"|?*]', '_', file_name)  # 去除 Windows 非法字符
         if not file_name or file_name.startswith('.'):
             file_name = 'unnamed_download'
-        
+
         full_path = os.path.join(save_dir, file_name)
-        
+
         # 二次校验：确保最终路径仍在 save_dir 内
         if not os.path.commonpath([os.path.abspath(full_path), os.path.abspath(save_dir)]) == os.path.abspath(save_dir):
             return make_result(-1, "文件名包含非法路径字符")
