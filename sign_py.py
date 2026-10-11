@@ -101,10 +101,10 @@ def getSign(e):
         u = formatDate(o)
         h = u['y']
         g = u['m']
-        l = u['d']
+        day = u['d']
         c = u['h']
         u = u['f']
-        d = ''.join([h, g, l, c, u])
+        d = ''.join([h, g, day, c, u])
         f = [s[int(p)] for p in d]
         h = A(''.join(f))
         g = A(f"{o}|{a}|{e}|{n}|{r}|{h}")
