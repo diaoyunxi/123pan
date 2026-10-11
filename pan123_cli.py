@@ -2,6 +2,7 @@
 """
 123pan 控制台交互界面 —— 仅负责用户 IO，所有业务调用 Pan123Core。
 """
+from __future__ import annotations
 
 import json
 import os
@@ -119,7 +120,7 @@ class Pan123CLI:
             return False
         return True
 
-    def load_config(self) -> Dict:
+    def load_config(self) -> dict:
         """加载配置"""
         try:
             with open(self.config_file, "r", encoding="utf-8") as f:
