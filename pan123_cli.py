@@ -6,7 +6,9 @@
 import json
 import os
 import sys
-from pan123_core import Pan123Core, Pan123Tool, Pan123EventType, format_size
+from typing import Dict
+
+from pan123_core import Pan123Core, Pan123EventType, Pan123Tool, format_size
 # ──────────────── 颜色工具 ────────────────
 
 class Color:
