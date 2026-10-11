@@ -13,7 +13,6 @@ import hashlib
 import json
 import logging
 
-logger = logging.getLogger(__name__)
 import os
 import random
 import secrets
@@ -25,6 +24,8 @@ from typing import Any, Optional
 from collections.abc import Callable
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 # ════════════════════════════════════════════════════════════════
 #  全局常量 —— URL / 端点 / 超时 / 分块 / 设备信息
