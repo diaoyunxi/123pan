@@ -53,9 +53,9 @@ class Pan123CLI:
 
     def run(self) -> None:
         """主入口"""
-        # Windows cmd 颜色支持
+        # Windows cmd 颜色支持：启用 ANSI 转义序列
         if os.name == "nt":
-            os.system("")  # noqa: S607 - Windows ANSI color enable
+            os.environ.setdefault("ANSICON", "1")  # 启用 Windows 终端 ANSI 颜色支持
 
         self._print_banner()
         if not self._init_login():
