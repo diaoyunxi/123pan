@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # 网页端加签算法，目前123pan已弃用
-import secrets
 import time
+import random
+import secrets
 from datetime import datetime
 
 
