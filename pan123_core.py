@@ -221,7 +221,7 @@ def calc_file_md5(file_path: str) -> str:
         32 位小写十六进制 MD5 字符串。
 
     Raises:
-        IOError: 文件读取失败时抛出。
+        OSError: 文件读取失败时抛出。
     """
     md5 = hashlib.md5(usedforsecurity=False)  # S324: 仅用于文件完整性校验，非密码学用途
     with open(file_path, "rb") as f:
@@ -1458,7 +1458,7 @@ class Pan123Core:
 
         try:
             md5 = calc_file_md5(file_path)
-        except IOError as e:
+        except OSError as e:
             logger.debug("读取文件失败: %s", e)
             return make_result(-1, "读取文件失败，请检查文件是否存在")
 
@@ -1651,7 +1651,7 @@ class Pan123Core:
                 return make_result(CODE_OK, "上传完成", {"reuse": False})
             return make_result(-1, f"上传确认失败: {r['message']}")
 
-        except IOError as e:
+        except OSError as e:
             logger.debug("读取文件失败: %s", e)
             return make_result(-1, "读取文件失败，请检查文件路径")
 
