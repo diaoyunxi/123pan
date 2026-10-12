@@ -24,3 +24,8 @@ build/
 .venv/
 venv/
 env/
+
+# Environment files (may contain secrets)
+.env
+.env.local
+.env.*.local
