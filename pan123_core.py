@@ -758,11 +758,11 @@ class Pan123Core:
         """
         if parent_id is None:
             parent_id = self.cwd_id
-        MAX_PAGES = 1000  # 分页安全上限，防止 API 异常时死循环 (CWE-835)
+        max_pages = 1000  # 分页安全上限，防止 API 异常时死循环 (CWE-835)
         page = 1
         all_items: list[dict] = []
         total = -1
-        while (total == -1 or len(all_items) < total) and page <= MAX_PAGES:
+        while (total == -1 or len(all_items) < total) and page <= max_pages:
             r = self.list_dir(parent_id, page=page, limit=limit)
             if r["code"] != CODE_OK:
                 return r
