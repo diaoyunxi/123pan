@@ -30,6 +30,11 @@ import requests
 #  全局常量 —— URL / 端点 / 超时 / 分块 / 设备信息
 # ════════════════════════════════════════════════════════════════
 
+# ── HTTP 状态码常量 ────────────────────────────────────────────
+HTTP_OK = 200
+HTTP_REDIRECT = 302
+HTTP_BAD_REQUEST = 400
+
 # ── 基础域名 ──────────────────────────────────────────────────
 SITE_BASE_URL = "https://www.123pan.com"
 """123pan 网站根地址"""
@@ -495,7 +500,7 @@ class Pan123Core:
                 timeout=timeout,
             )
             # HTTP 状态码校验：非 2xx 响应不应视为 API 成功 (CWE-20)
-            if resp.status_code >= 400:
+            if resp.status_code >= HTTP_BAD_REQUEST:
                 preview = (resp.text or "").strip()[:200]
                 return make_result(
                     -4,
@@ -1121,7 +1126,7 @@ class Pan123Core:
             # 仅在获取下载链接时关闭验证
             requests.packages.urllib3.disable_warnings()
             resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=os.environ.get("PAN123_SSL_VERIFY", "1") == "1")
-            if resp.status_code == 302:
+            if resp.status_code == HTTP_REDIRECT:
                 location = resp.headers.get("Location")
                 if location:
                     return make_result(CODE_OK, "ok", {"url": location})

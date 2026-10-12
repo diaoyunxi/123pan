@@ -7,6 +7,14 @@ import json
 import os
 import sys
 from pan123_core import Pan123Core, Pan123Tool, Pan123EventType, format_size
+
+# ──────────────── API 返回码常量 ────────────────
+API_CODE_DUPLICATE_FILE = 5060  # 同名文件冲突
+
+# ──────────────── 下载模式常量 ────────────────
+DOWNLOAD_MODE_OVERWRITE = 3  # 覆盖已有文件
+DOWNLOAD_MODE_SKIP = 4       # 跳过已有文件
+
 # ──────────────── 颜色工具 ────────────────
 
 class Color:
@@ -276,7 +284,7 @@ class Pan123CLI:
         if not path:
             path = input("请输入文件路径: ")
         r = self.core.upload_file(path, on_progress=self._upload_progress)
-        if r["code"] == 5060:
+        if r["code"] == API_CODE_DUPLICATE_FILE:
             choice = input("检测到同名文件，输入 1 覆盖，2 保留两者，其他取消: ")
             if choice == "1":
                 r = self.core.upload_file(path, duplicate=1, on_progress=self._upload_progress)
@@ -343,8 +351,8 @@ class Pan123CLI:
         item = self.core.file_list[idx]
         print(f"开始下载: {item['FileName']}")
 
-        overwrite = self._download_mode == 3
-        skip = self._download_mode == 4
+        overwrite = self._download_mode == DOWNLOAD_MODE_OVERWRITE
+        skip = self._download_mode == DOWNLOAD_MODE_SKIP
         r = self.tool.download_file(
             idx,
             on_progress=self._download_progress,
