@@ -119,7 +119,7 @@ class Pan123CLI:
             return False
         return True
 
-    def load_config(self) -> Dict:
+    def load_config(self) -> dict:
         """加载配置"""
         try:
             with open(self.config_file, "r", encoding="utf-8") as f:
