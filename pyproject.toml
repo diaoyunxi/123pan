@@ -1,0 +1,10 @@
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "S", "B", "PLE"]
+ignore = ["S603", "S607"]  # subprocess 相关，项目中合理使用
+
+[tool.ruff.lint.isort]
+known-first-party = ["pan123"]

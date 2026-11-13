@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 123pan 网盘内核模块
 所有公开方法统一返回 Result 字典::
@@ -10,13 +11,18 @@
 
 import hashlib
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 import os
 import random
+import secrets
 import re
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
+from collections.abc import Callable
 
 import requests
 
@@ -127,7 +133,7 @@ CODE_CONFLICT = 1
 """自定义：本地文件冲突（下载时目标已存在）"""
 
 # ── 设备信息池（Android 协议伪装）─────────────────────────────
-DEVICE_TYPES: List[str] = [
+DEVICE_TYPES: list[str] = [
     "24075RP89G", "24076RP19G", "24076RP19I", "M1805E10A", "M2004J11G",
     "M2012K11AG", "M2104K10I", "22021211RG", "22021211RI", "21121210G",
     "23049PCD8G", "23049PCD8I", "23013PC75G", "24069PC21G", "24069PC21I",
@@ -139,7 +145,7 @@ DEVICE_TYPES: List[str] = [
 ]
 """可选的 Android 设备型号列表"""
 
-OS_VERSIONS: List[str] = [
+OS_VERSIONS: list[str] = [
     "Android_7.1.2", "Android_8.0.0", "Android_8.1.0", "Android_9.0",
     "Android_10", "Android_11", "Android_12", "Android_13",
     "Android_6.0.1", "Android_5.1.1", "Android_4.4.4", "Android_4.3",
@@ -174,7 +180,7 @@ class Pan123EventType:
 #  工具函数
 # ════════════════════════════════════════════════════════════════
 
-def make_result(code: int = CODE_OK, message: str = "ok", data: Any = None) -> Dict[str, Any]:
+def make_result(code: int = CODE_OK, message: str = "ok", data: Any = None) -> dict[str, Any]:
     """构造统一返回结构。
 
     Args:
@@ -203,6 +209,8 @@ def format_size(size_bytes: int) -> str:
     return f"{size_bytes} B"
 
 
+# NOTE: MD5 is used here for file checksum verification as required by 123pan API.
+# MD5 is not cryptographically secure; do not use for security-critical purposes.
 def calc_file_md5(file_path: str) -> str:
     """计算文件的 MD5 哈希值。
 
@@ -215,7 +223,7 @@ def calc_file_md5(file_path: str) -> str:
     Raises:
         IOError: 文件读取失败时抛出。
     """
-    md5 = hashlib.md5()
+    md5 = hashlib.md5(usedforsecurity=False)  # S324: 仅用于文件完整性校验，非密码学用途
     with open(file_path, "rb") as f:
         while chunk := f.read(MD5_READ_CHUNK_SIZE):
             md5.update(chunk)
@@ -253,13 +261,13 @@ class Pan123Core:
         device_type (str):      Android 设备型号。 留空则随机选取 DEVICE_TYPES 中的一个。
         os_version (str):       Android 系统版本。 留空则随机选取 OS_VERSIONS 中的一个。
         cwd_id (int):           当前工作目录 FileId（0 = 根目录）。
-        cwd_stack (List[int]):  目录 ID 导航栈。
-        cwd_name_stack (List[str]): 目录名称导航栈。
-        file_list (List[Dict]): 当前目录已加载的文件 / 文件夹列表。
+        cwd_stack (list[int]):  目录 ID 导航栈。
+        cwd_name_stack (list[str]): 目录名称导航栈。
+        file_list (list[Dict]): 当前目录已加载的文件 / 文件夹列表。
         file_total (int):       当前目录文件总数（服务端返回）。
         all_loaded (bool):      当前目录是否已全部加载。
         cookies (Optional[Dict]): 登录后保存的 Cookie。
-        headers (Dict[str, str]): 当前使用的请求头。
+        headers (dict[str, str]): 当前使用的请求头。
 
         nick_name (str): 当前用户昵称（获取用户信息时填充）。
         uid (int): 当前用户 UID（获取用户信息时填充）。
@@ -302,8 +310,8 @@ class Pan123Core:
 
         # 设备 / 协议
         self.protocol: str = protocol.lower()
-        self.device_type: str = device_type or random.choice(DEVICE_TYPES)
-        self.os_version: str = os_version or random.choice(OS_VERSIONS)
+        self.device_type: str = device_type or secrets.choice(DEVICE_TYPES)
+        self.os_version: str = os_version or secrets.choice(OS_VERSIONS)
         self.login_uuid: str = uuid.uuid4().hex
 
         # 配置文件
@@ -311,20 +319,20 @@ class Pan123Core:
 
         # 目录导航状态
         self.cwd_id: int = 0
-        self.cwd_stack: List[int] = [0]
-        self.cwd_name_stack: List[str] = []
+        self.cwd_stack: list[int] = [0]
+        self.cwd_name_stack: list[str] = []
 
         # 当前目录文件列表
-        self.file_list: List[Dict] = []
+        self.file_list: list[dict] = []
         self.file_total: int = 0
         self.all_loaded: bool = False
         self._page: int = 0
 
         # Cookies
-        self.cookies: Optional[Dict] = None
+        self.cookies: Optional[dict] = None
 
         # 请求头
-        self.headers: Dict[str, str] = {}
+        self.headers: dict[str, str] = {}
         self._build_headers()
 
         # 运行参数
@@ -390,7 +398,7 @@ class Pan123Core:
     #  配置持久化
     # ════════════════════════════════════════════════════════════
 
-    def load_config(self, cfg: Dict) -> Dict[str, Any]:
+    def load_config(self, cfg: dict) -> dict[str, Any]:
         """从配置加载账号信息、Token 及协议设置。仅更新cfg中存在的字段，
 
         会自动重建 headers 并同步 authorization。
@@ -406,7 +414,10 @@ class Pan123Core:
         """
         try:
             self.user_name = cfg.get("userName", self.user_name)
-            self.password = cfg.get("passWord", self.password)
+            # CWE-312: 密码占位符 __MASKED__ 表示磁盘上未存储真实密码，不覆盖内存值
+            stored_pwd = cfg.get("passWord", self.password)
+            if stored_pwd and stored_pwd != "__MASKED__":
+                self.password = stored_pwd
             self.authorization = cfg.get("authorization", self.authorization)
             self.device_type = cfg.get("deviceType", self.device_type)
             self.os_version = cfg.get("osVersion", self.os_version)
@@ -415,9 +426,10 @@ class Pan123Core:
             self._sync_authorization()
             return make_result(CODE_OK, "配置加载成功", cfg)
         except Exception as e:
-            return make_result(-1, f"加载配置失败: {e}")
+            logger.debug("加载配置失败: %s", e)
+            return make_result(-1, "加载配置失败，请检查配置文件")
 
-    def get_current_config(self) -> Dict[str, Any]:
+    def get_current_config(self) -> dict[str, Any]:
         """获取当前账号信息、Token 及协议设置的字典表示。
 
         Returns:
@@ -434,7 +446,8 @@ class Pan123Core:
         """
         return {
             "userName": self.user_name,
-            "passWord": self.password,
+            # CWE-312: 对外展示时脱敏密码，防止日志或调试输出泄露
+            "passWord": "***" if self.password else "",
             "authorization": self.authorization,
             "deviceType": self.device_type,
             "osVersion": self.os_version,
@@ -453,7 +466,7 @@ class Pan123Core:
             json_data: Any = None,
             params: Any = None,
             timeout: int = TIMEOUT_DEFAULT,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """发送 HTTP 请求并返回统一 Result。
 
         内部方法，自动拼接 API_BASE_URL（当 path 以 "/" 开头时），
@@ -481,6 +494,13 @@ class Pan123Core:
                 params=params,
                 timeout=timeout,
             )
+            # HTTP 状态码校验：非 2xx 响应不应视为 API 成功 (CWE-20)
+            if resp.status_code >= 400:
+                preview = (resp.text or "").strip()[:200]
+                return make_result(
+                    -4,
+                    f"HTTP {resp.status_code} 错误: {preview or '<empty>'}",
+                )
             try:
                 data = resp.json()
             except ValueError:
@@ -500,13 +520,14 @@ class Pan123Core:
                 return make_result(-3, data.get("message", "未知错误"), data)
             return make_result(CODE_OK, "ok", data)
         except requests.RequestException as e:
-            return make_result(-1, f"请求失败: {e}")
+            logger.debug("请求失败: %s", e)
+            return make_result(-1, "网络请求失败，请稍后重试")
 
     # ════════════════════════════════════════════════════════════
     #  用户信息
     # ════════════════════════════════════════════════════════════
 
-    def get_user_info(self) -> Dict[str, Any]:
+    def get_user_info(self) -> dict[str, Any]:
         """获取当前登录用户的信息。
 
         Returns:
@@ -538,7 +559,7 @@ class Pan123Core:
     #  登录 / 登出
     # ════════════════════════════════════════════════════════════
 
-    def login(self) -> Dict[str, Any]:
+    def login(self) -> dict[str, Any]:
         """使用 user_name 和 password 登录，成功后自动更新 authorization 并保存配置。
 
         Returns:
@@ -565,7 +586,7 @@ class Pan123Core:
         # self.save_config_to_file()
         return make_result(CODE_OK, "登录成功")
 
-    def logout(self) -> Dict[str, Any]:
+    def logout(self) -> dict[str, Any]:
         """登出：清除 authorization 和 cookies，并保存配置。
 
         Returns:
@@ -579,7 +600,7 @@ class Pan123Core:
         # self.save_config_to_file()
         return make_result(CODE_OK, "已登出")
 
-    def clear_account(self) -> Dict[str, Any]:
+    def clear_account(self) -> dict[str, Any]:
         """清除已登录账号：清除用户名、密码、authorization 和 cookies，不保存配置，但重建请求头。
 
         Returns:
@@ -595,7 +616,7 @@ class Pan123Core:
         # self.save_config_to_file()
         return make_result(CODE_OK, "账号信息已清除")
 
-    def check_login(self) -> Dict[str, Any]:
+    def check_login(self) -> dict[str, Any]:
         """检查当前登录状态是否有效。
 
         通过尝试获取根目录列表来验证 Token 是否有效。
@@ -611,7 +632,7 @@ class Pan123Core:
             return make_result(CODE_OK, "登录状态有效")
         return make_result(-1, f"登录状态无效: {result['message']}")
 
-    def init_login_state(self) -> Dict[str, Any]:
+    def init_login_state(self) -> dict[str, Any]:
         """根据提供的配置初始化登录状态。
 
         Args:
@@ -639,7 +660,7 @@ class Pan123Core:
     #  目录浏览
     # ════════════════════════════════════════════════════════════
 
-    def get_folder_details(self, folder_id: int) -> Dict[str, Any]:
+    def get_folder_details(self, folder_id: int) -> dict[str, Any]:
         """获取指定文件夹的详情信息。
 
         Args:
@@ -667,7 +688,7 @@ class Pan123Core:
             parent_id: Optional[int] = None,
             page: int = 1,
             limit: int = FILE_LIST_PAGE_LIMIT,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取指定目录的单页文件列表。
 
         Args:
@@ -715,7 +736,7 @@ class Pan123Core:
             self,
             parent_id: Optional[int] = None,
             limit: int = FILE_LIST_PAGE_LIMIT,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取指定目录下的全部文件（自动翻页，含限频等待）。
 
         Args:
@@ -737,14 +758,19 @@ class Pan123Core:
         """
         if parent_id is None:
             parent_id = self.cwd_id
+        MAX_PAGES = 1000  # 分页安全上限，防止 API 异常时死循环 (CWE-835)
         page = 1
-        all_items: List[Dict] = []
+        all_items: list[dict] = []
         total = -1
-        while total == -1 or len(all_items) < total:
+        while (total == -1 or len(all_items) < total) and page <= MAX_PAGES:
             r = self.list_dir(parent_id, page=page, limit=limit)
             if r["code"] != CODE_OK:
                 return r
-            all_items.extend(r["data"]["items"])
+            new_items = r["data"]["items"]
+            if not new_items:
+                # API 返回空页，提前退出防止无效分页
+                break
+            all_items.extend(new_items)
             total = r["data"]["total"]
             page += 1
             # 限频：每 RATE_LIMIT_PAGES 页暂停 RATE_LIMIT_INTERVAL 秒
@@ -752,7 +778,7 @@ class Pan123Core:
                 time.sleep(RATE_LIMIT_INTERVAL)
         return make_result(CODE_OK, "ok", {"items": all_items, "total": total})
 
-    def refresh(self) -> Dict[str, Any]:
+    def refresh(self) -> dict[str, Any]:
         """刷新当前目录：清空 file_list 并重新加载第一页。
 
         Returns:
@@ -764,7 +790,7 @@ class Pan123Core:
         self._page = 0
         return self.load_more()
 
-    def load_more(self) -> Dict[str, Any]:
+    def load_more(self) -> dict[str, Any]:
         """加载当前目录的下一页文件，追加到 file_list。
 
         Returns:
@@ -803,7 +829,7 @@ class Pan123Core:
         """当前工作目录的完整路径字符串，例如 "/" 或 "/照片/2024"。"""
         return "/" + "/".join(self.cwd_name_stack) if self.cwd_name_stack else "/"
 
-    def cd(self, folder_index: int) -> Dict[str, Any]:
+    def cd(self, folder_index: int) -> dict[str, Any]:
         """进入 file_list 中指定下标的文件夹。
 
         Args:
@@ -825,7 +851,7 @@ class Pan123Core:
         self.cwd_name_stack.append(item["FileName"])
         return self.refresh()
 
-    def cd_up(self) -> Dict[str, Any]:
+    def cd_up(self) -> dict[str, Any]:
         """返回上级目录。
 
         Returns:
@@ -841,7 +867,7 @@ class Pan123Core:
         self.cwd_name_stack.pop()
         return self.refresh()
 
-    def cd_root(self) -> Dict[str, Any]:
+    def cd_root(self) -> dict[str, Any]:
         """返回根目录。
 
         Returns:
@@ -856,7 +882,7 @@ class Pan123Core:
     #  创建目录
     # ════════════════════════════════════════════════════════════
 
-    def mkdir(self, name: str) -> Dict[str, Any]:
+    def mkdir(self, name: str) -> dict[str, Any]:
         """在当前目录下创建子目录。
 
         Args:
@@ -888,7 +914,7 @@ class Pan123Core:
     #  删除 / 恢复
     # ════════════════════════════════════════════════════════════
 
-    def trash(self, file_data: Any, delete: bool = True) -> Dict[str, Any]:
+    def trash(self, file_data: Any, delete: bool = True) -> dict[str, Any]:
         """删除或恢复文件 / 文件夹。
 
         Args:
@@ -913,7 +939,7 @@ class Pan123Core:
             return make_result(CODE_OK, f"{action}成功")
         return make_result(r["code"], f"{action}失败: {r['message']}")
 
-    def trash_by_index(self, index: int) -> Dict[str, Any]:
+    def trash_by_index(self, index: int) -> dict[str, Any]:
         """根据 file_list 的 0-based 下标删除文件。
 
         Args:
@@ -930,7 +956,7 @@ class Pan123Core:
     #  回收站
     # ════════════════════════════════════════════════════════════
 
-    def list_recycle(self) -> Dict[str, Any]:
+    def list_recycle(self) -> dict[str, Any]:
         """获取回收站中的文件列表。
 
         Returns:
@@ -954,7 +980,7 @@ class Pan123Core:
             return r
         return make_result(CODE_OK, "ok", r["data"]["data"]["InfoList"])
 
-    def restore(self, file_id: int) -> Dict[str, Any]:
+    def restore(self, file_id: int) -> dict[str, Any]:
         """从回收站恢复指定文件。
 
         Args:
@@ -971,10 +997,10 @@ class Pan123Core:
 
     def share(
             self,
-            file_ids: List[int],
+            file_ids: list[int],
             share_pwd: str = "",
             expiration: str = "2099-12-12T08:00:00+08:00",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """创建分享链接。
 
         Args:
@@ -1015,7 +1041,7 @@ class Pan123Core:
             "share_pwd": share_pwd,
         })
 
-    def share_by_indices(self, indices: List[int], share_pwd: str = "") -> Dict[str, Any]:
+    def share_by_indices(self, indices: list[int], share_pwd: str = "") -> dict[str, Any]:
         """根据 file_list 的 0-based 下标列表创建分享。
 
         Args:
@@ -1035,7 +1061,7 @@ class Pan123Core:
     #  下载
     # ════════════════════════════════════════════════════════════
 
-    def get_download_url(self, index: int) -> Dict[str, Any]:
+    def get_download_url(self, index: int) -> dict[str, Any]:
         """获取 file_list 中指定下标文件的真实下载直链。
 
         会自动处理 302 重定向和 HTML 中的 href 提取。
@@ -1054,7 +1080,7 @@ class Pan123Core:
         item = self.file_list[index]
         return self.get_item_download_url(item)
 
-    def get_item_download_url(self, item: Dict) -> Dict[str, Any]:
+    def get_item_download_url(self, item: dict) -> dict[str, Any]:
         """获取单个文件或文件夹的真实下载链接。
         Args:
             item: 文件信息字典，文件夹（Type = 1）需包含 "FileId"
@@ -1094,7 +1120,7 @@ class Pan123Core:
             # 关闭 SSL 验证以避免下载链接获取失败
             # 仅在获取下载链接时关闭验证
             requests.packages.urllib3.disable_warnings()
-            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=False)
+            resp = requests.get(download_url, allow_redirects=False, timeout=TIMEOUT_DEFAULT, verify=os.environ.get("PAN123_SSL_VERIFY", "1") == "1")
             if resp.status_code == 302:
                 location = resp.headers.get("Location")
                 if location:
@@ -1105,7 +1131,8 @@ class Pan123Core:
                 return make_result(CODE_OK, "ok", {"url": match.group(1)})
             return make_result(-1, "无法解析真实下载链接")
         except requests.RequestException as e:
-            return make_result(-1, f"获取真实下载链接失败: {e}")
+            logger.debug("获取真实下载链接失败: %s", e)
+            return make_result(-1, "获取下载链接失败，请稍后重试")
 
     # 文件交互，方法已移至 Pan123Tool
     # def download_file(
@@ -1115,7 +1142,7 @@ class Pan123Core:
     #         on_progress: ProgressCallback = None,
     #         overwrite: bool = False,
     #         skip_existing: bool = False,
-    # ) -> Dict[str, Any]:
+    # ) -> dict[str, Any]:
     #     """下载 file_list 中指定下标的文件到本地。
     #
     #     如果目标是文件夹，则自动递归调用 download_directory()。
@@ -1186,7 +1213,8 @@ class Pan123Core:
     #     except Exception as e:
     #         if os.path.exists(temp_path):
     #             os.remove(temp_path)
-    #         return make_result(-1, f"下载失败: {e}")
+    #         logger.debug("下载失败: %s", e)
+            return make_result(-1, "下载失败，请稍后重试")
 
     # 文件交互，方法已移至 Pan123Tool，Pan123Core 仅保留获取下载链接的功能，目录下载逻辑也移至工具类以避免内核依赖文件系统。
     # def download_directory(
@@ -1196,7 +1224,7 @@ class Pan123Core:
     #         on_progress: ProgressCallback = None,
     #         overwrite: bool = False,
     #         skip_existing: bool = False,
-    # ) -> Dict[str, Any]:
+    # ) -> dict[str, Any]:
     #     """递归下载整个目录到本地。
     #
     #     Args:
@@ -1227,7 +1255,7 @@ class Pan123Core:
     #     if not items:
     #         return make_result(CODE_OK, "文件夹为空", {"path": target_dir})
     #
-    #     errors: List[str] = []
+    #     errors: list[str] = []
     #     for item in items:
     #         if item["Type"] == 1:
     #             sub = self.download_directory(item, target_dir, on_progress, overwrite, skip_existing)
@@ -1253,7 +1281,7 @@ class Pan123Core:
             file_path: str,
             duplicate: int = 0,
             on_progress: ProgressCallback = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """上传本地文件到当前目录。
 
         支持秒传（MD5 复用）和分块上传。
@@ -1288,7 +1316,7 @@ class Pan123Core:
             dir_path: str,
             duplicate: int = 0,
             on_progress: ProgressCallback = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """递归上传本地文件夹到当前目录，并保留本地根目录名。
 
         Args:
@@ -1331,7 +1359,7 @@ class Pan123Core:
 
         root_remote_id = root_res["data"]["file_id"]
         remote_dirs = {root_path: root_remote_id}
-        errors: List[str] = []
+        errors: list[str] = []
         uploaded_total = 0
         uploaded_files = 0
 
@@ -1359,6 +1387,7 @@ class Pan123Core:
                 dir_names[:] = []
                 continue
 
+            failed_dirs = []
             for dir_name in list(dir_names):
                 local_dir = os.path.join(current_dir, dir_name)
                 sub_res = self._mkdir_at(dir_name, parent_remote_id)
@@ -1366,14 +1395,17 @@ class Pan123Core:
                     remote_dirs[local_dir] = sub_res["data"]["file_id"]
                 else:
                     errors.append(f"{os.path.relpath(local_dir, root_path)}: {sub_res['message']}")
-                    dir_names.remove(dir_name)
+                    failed_dirs.append(dir_name)
+            # 延迟移除，避免在遍历 list(dir_names) 期间修改 dir_names
+            for d in failed_dirs:
+                dir_names.remove(d)
 
             for file_name in file_names:
                 local_file = os.path.join(current_dir, file_name)
                 if not os.path.isfile(local_file):
                     continue
 
-                def file_progress(data: Dict[str, Any], current_file: str = local_file) -> None:
+                def file_progress(data: dict[str, Any], current_file: str = local_file) -> None:
                     emit_progress(current_file, data.get("uploaded", 0))
 
                 sub = self._upload_file_at(local_file, parent_remote_id, duplicate, file_progress)
@@ -1404,7 +1436,7 @@ class Pan123Core:
             dir_path: str,
             duplicate: int = 0,
             on_progress: ProgressCallback = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """upload_directory 的别名。"""
         return self.upload_directory(dir_path, duplicate=duplicate, on_progress=on_progress)
 
@@ -1414,7 +1446,7 @@ class Pan123Core:
             parent_id: int,
             duplicate: int = 0,
             on_progress: ProgressCallback = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """上传本地文件到指定网盘目录。"""
         if not os.path.exists(file_path):
             return make_result(-1, "文件不存在")
@@ -1427,7 +1459,8 @@ class Pan123Core:
         try:
             md5 = calc_file_md5(file_path)
         except IOError as e:
-            return make_result(-1, f"读取文件失败: {e}")
+            logger.debug("读取文件失败: %s", e)
+            return make_result(-1, "读取文件失败，请检查文件是否存在")
 
         payload = {
             "driveId": 0,
@@ -1460,7 +1493,7 @@ class Pan123Core:
             on_progress=on_progress,
         )
 
-    def _mkdir_at(self, name: str, parent_id: int) -> Dict[str, Any]:
+    def _mkdir_at(self, name: str, parent_id: int) -> dict[str, Any]:
         """在指定网盘目录下创建子目录，并返回新目录 FileId。"""
         if not name:
             return make_result(-1, "目录名不能为空")
@@ -1534,7 +1567,7 @@ class Pan123Core:
             upload_id: str,
             file_id: str,
             on_progress: ProgressCallback = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """执行 S3 分块上传流程（内部方法）。
 
         流程: 循环读取文件分块 → 获取预签名 URL → PUT 上传 →
@@ -1587,7 +1620,8 @@ class Pan123Core:
                         if resp.status_code not in (200, 201):
                             return make_result(-1, f"分块上传失败，HTTP {resp.status_code}")
                     except requests.RequestException as e:
-                        return make_result(-1, f"分块上传请求失败: {e}")
+                        logger.debug("分块上传请求失败: %s", e)
+                        return make_result(-1, "分块上传请求失败，请稍后重试")
 
                     uploaded += len(chunk)
                     if on_progress:
@@ -1595,7 +1629,7 @@ class Pan123Core:
                             "type": Pan123EventType.UPLOAD_PROGRESS,
                             "uploaded": uploaded,
                             "total": total_size,
-                            "percent": uploaded / total_size * 100,
+                            "percent": (uploaded / total_size * 100) if total_size > 0 else 100.0,
                         })
                     part_number += 1
 
@@ -1606,7 +1640,9 @@ class Pan123Core:
                 "uploadId": upload_id,
                 "StorageNode": storage_node,
             }
-            self._request("POST", URL_UPLOAD_COMPLETE_S3, json_data=merge_payload, timeout=TIMEOUT_TRASH)
+            merge_r = self._request("POST", URL_UPLOAD_COMPLETE_S3, json_data=merge_payload, timeout=TIMEOUT_TRASH)
+            if merge_r["code"] != CODE_OK:
+                return make_result(-1, f"S3 分块合并失败: {merge_r['message']}")
             time.sleep(S3_MERGE_DELAY)
 
             # 步骤 4: 确认上传完成
@@ -1616,13 +1652,14 @@ class Pan123Core:
             return make_result(-1, f"上传确认失败: {r['message']}")
 
         except IOError as e:
-            return make_result(-1, f"读取文件失败: {e}")
+            logger.debug("读取文件失败: %s", e)
+            return make_result(-1, "读取文件失败，请检查文件路径")
 
     # ════════════════════════════════════════════════════════════
     #  协议切换
     # ════════════════════════════════════════════════════════════
 
-    def set_protocol(self, protocol: str) -> Dict[str, Any]:
+    def set_protocol(self, protocol: str) -> dict[str, Any]:
         """切换请求协议并保存配置。
 
         切换后会重建 headers 并同步 authorization。
@@ -1661,7 +1698,7 @@ class Pan123Tool:
         self.core = core
         self.config_file = config_file
 
-    def load_config_from_file(self) -> Dict[str, Any]:
+    def load_config_from_file(self) -> dict[str, Any]:
         """从配置文件加载账号信息、Token 及协议设置。
 
         会自动重建 headers 并同步 authorization。
@@ -1679,10 +1716,15 @@ class Pan123Tool:
                 cfg = json.load(f)
             return self.core.load_config(cfg)
         except Exception as e:
-            return make_result(-1, f"加载配置失败: {e}")
+            logger.debug("加载配置失败: %s", e)
+            return make_result(-1, "加载配置失败，请检查配置文件")
 
-    def save_config_to_file(self) -> Dict[str, Any]:
+    def save_config_to_file(self) -> dict[str, Any]:
         """将当前账号信息、Token 及协议设置保存到配置文件。
+
+        安全说明 (CWE-312): 密码不再以明文写入配置文件。
+        持久化时密码字段替换为占位符 ``__MASKED__``；后续登录需重新输入密码。
+        ``authorization`` token 是唯一需要持久化的凭据，足以维持后续 API 调用。
 
         Returns:
             Result 字典::
@@ -1692,7 +1734,8 @@ class Pan123Tool:
         """
         cfg = {
             "userName": self.core.user_name,
-            "passWord": self.core.password,
+            # CWE-312: 密码不持久化到磁盘，用占位符标记；重新登录时由用户输入
+            "passWord": "__MASKED__" if self.core.password else "",
             "authorization": self.core.authorization,
             "deviceType": self.core.device_type,
             "osVersion": self.core.os_version,
@@ -1703,7 +1746,8 @@ class Pan123Tool:
                 json.dump(cfg, f, ensure_ascii=False, indent=2)
             return make_result(CODE_OK, "配置已保存", cfg)
         except Exception as e:
-            return make_result(-1, f"保存配置失败: {e}")
+            logger.debug("保存配置失败: %s", e)
+            return make_result(-1, "保存配置失败，请检查写入权限")
 
     def download_file(
             self,
@@ -1712,7 +1756,7 @@ class Pan123Tool:
             on_progress: ProgressCallback = None,
             overwrite: bool = False,
             skip_existing: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """下载 file_list 中指定下标的文件到本地。
 
         如果目标是文件夹，则自动递归调用 download_directory()。
@@ -1740,7 +1784,7 @@ class Pan123Tool:
 
     def download_item(
             self,
-            item: Dict,
+            item: dict,
             save_dir: str = "download",
             on_progress: ProgressCallback = None,
             overwrite: bool = False,
@@ -1782,7 +1826,7 @@ class Pan123Tool:
             on_progress: ProgressCallback = None,
             overwrite: bool = False,
             skip_existing: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """根据下载链接下载文件到本地，支持进度回调和冲突处理。
 
         Args:
@@ -1803,7 +1847,18 @@ class Pan123Tool:
         """
 
         os.makedirs(save_dir, exist_ok=True)
+        
+        # 路径穿越防护：确保文件名不包含路径分隔符或上级目录引用 (CWE-22)
+        file_name = os.path.basename(file_name)  # 去除路径组件
+        file_name = re.sub(r'[<>:"|?*]', '_', file_name)  # 去除 Windows 非法字符
+        if not file_name or file_name.startswith('.'):
+            file_name = 'unnamed_download'
+        
         full_path = os.path.join(save_dir, file_name)
+        
+        # 二次校验：确保最终路径仍在 save_dir 内
+        if not os.path.commonpath([os.path.abspath(full_path), os.path.abspath(save_dir)]) == os.path.abspath(save_dir):
+            return make_result(-1, "文件名包含非法路径字符")
 
         # 文件冲突处理
         if os.path.exists(full_path):
@@ -1818,7 +1873,14 @@ class Pan123Tool:
         temp_path = full_path + ".123pan"
         try:
             resp = requests.get(url, stream=True, timeout=TIMEOUT_DOWNLOAD)
-            total = int(resp.headers.get("Content-Length", 0))
+            # 安全解析 Content-Length：畸形值（非数字/负数）回退为 0，
+            # 防止 ValueError 导致下载崩溃 (CWE-755)
+            try:
+                total = int(resp.headers.get("Content-Length", 0))
+            except (ValueError, TypeError):
+                total = 0
+            if total < 0:
+                total = 0
             downloaded = 0
             start = time.time()
             with open(temp_path, "wb") as f:
@@ -1842,16 +1904,17 @@ class Pan123Tool:
         except Exception as e:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
-            return make_result(-1, f"下载失败: {e}")
+            logger.debug("下载失败: %s", e)
+            return make_result(-1, "下载失败，请稍后重试")
 
     def download_directory(
             self,
-            directory: Dict,
+            directory: dict,
             save_dir: str = "download",
             on_progress: ProgressCallback = None,
             overwrite: bool = False,
             skip_existing: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """递归下载整个目录到本地。
 
         Args:
@@ -1880,7 +1943,7 @@ class Pan123Tool:
         if not items:
             return make_result(CODE_OK, "文件夹为空", {"path": target_dir})
 
-        errors: List[str] = []
+        errors: list[str] = []
         for item in items:
             if item["Type"] == 1:
                 # 递归下载子目录
