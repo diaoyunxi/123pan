@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 123pan 控制台交互界面 —— 仅负责用户 IO，所有业务调用 Pan123Core。
 """
@@ -6,7 +5,11 @@
 import json
 import os
 import sys
+from typing import Dict
+
 from pan123_core import Pan123Core, Pan123Tool, Pan123EventType, format_size
+
+
 # ──────────────── 颜色工具 ────────────────
 
 class Color:
@@ -17,8 +20,12 @@ class Color:
     YELLOW = "\033[93m"
     PURPLE = "\033[35m"
     CYAN = "\033[96m"
+
+
 def colored(text: str, color: str) -> str:
     return f"{color}{text}{Color.RESET}"
+
+
 # ──────────────── CLI 类 ────────────────
 
 class Pan123CLI:
@@ -55,7 +62,7 @@ class Pan123CLI:
         """主入口"""
         # Windows cmd 颜色支持
         if os.name == "nt":
-            os.system("")  # noqa: S607 - Windows ANSI color enable
+            os.system("")
 
         self._print_banner()
         if not self._init_login():
@@ -66,7 +73,7 @@ class Pan123CLI:
                 password = input("请输入密码: ")
                 if not user_name or not password:
                     print("用户名和密码不能为空，程序退出")
-                    return None
+                    return
                 self.core.load_config({
                     "userName": user_name,
                     "passWord": password,
@@ -77,7 +84,7 @@ class Pan123CLI:
             if a == "2":
                 self._do_clear_account()
                 return self.run()
-            return None
+            return
 
         self.save_config()
         self.core.refresh()  # 加载文件列表
@@ -109,9 +116,6 @@ class Pan123CLI:
     def _init_login(self) -> bool:
         """尝试加载配置 -> 尝试访问目录 -> 必要时登录"""
         res = self.load_config()
-        if res.get("code", -1) < 0:
-            print(colored(f"配置加载失败: {res.get('message', '未知错误')}", Color.YELLOW))
-            return False
         r = self.core.init_login_state()
         if r["code"] < 0:
             print(colored("登录失败", Color.YELLOW))
@@ -124,15 +128,6 @@ class Pan123CLI:
         try:
             with open(self.config_file, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
-        except json.JSONDecodeError:
-            print(f"警告: 配置文件 {self.config_file} 格式损坏，请重新配置")
-            user_name = input("请输入用户名: ")
-            password = input("请输入密码: ")
-            cfg = {
-                "userName": user_name,
-                "passWord": password,
-                "authorization": ""
-            }
         except FileNotFoundError:
             user_name = input("请输入用户名: ")
             password = input("请输入密码: ")
@@ -148,10 +143,6 @@ class Pan123CLI:
         cfg = self.core.get_current_config()
         with open(self.config_file, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=2, ensure_ascii=False)
-        
-        # 设置文件权限为仅所有者可读写 (CWE-732)
-        import os
-        os.chmod(self.config_file, 0o600)
 
     # ──────────────── 命令分发 ────────────────
 
@@ -472,6 +463,8 @@ class Pan123CLI:
         if total > 0:
             pct = uploaded / total * 100
             print(f"\r上传进度: {pct:.1f}%", end="", flush=True)
+
+
 # ──────────────── 入口 ────────────────
 
 if __name__ == "__main__":
